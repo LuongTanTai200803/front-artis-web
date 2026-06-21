@@ -1,90 +1,98 @@
 import React, { useState } from 'react';
-import axios from 'axios';
+import { useAuth } from '../contexts/AuthContext';
 
-const AuthModal = ({ isOpen, onClose , onSuccess}) => {
-  const [isLogin, setIsLogin] = useState(true); // Switch giữa Login và Register
-  const [formData, setFormData] = useState({ username: '', password: '' });
+const AuthModal = ({ isOpen, onClose, onSuccess }) => {
+  const [isLogin, setIsLogin] = useState(true);
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+    fullName: '',
+    phoneNumber: '',
+    role: 'BUYER',
+    avatarUrl: '',
+  });
+  const { login, register } = useAuth();
 
-  if (!isOpen) return null; // Nếu không mở thì không vẽ gì cả
+  if (!isOpen) return null;
 
   const handleSubmit = async (e) => {
-  e.preventDefault();
-  try {
-    const res = await axios.post(`http://localhost:8080/api/auth/login`, formData);
-    const token = res.data;
-    localStorage.setItem("token", token);
+    e.preventDefault();
+    try {
+      if (isLogin) {
+        await login({ email: formData.email, password: formData.password });
+        if (onSuccess) onSuccess('Đăng nhập thành công!');
+      } else {
+        await register({
+          email: formData.email,
+          password: formData.password,
+          fullName: formData.fullName,
+          phoneNumber: formData.phoneNumber,
+          role: formData.role,
+          avatarUrl: formData.avatarUrl || undefined,
+        });
+        if (onSuccess) onSuccess('Đăng ký thành công! Vui lòng đăng nhập.');
+        setIsLogin(true);
+      }
+      onClose();
+    } catch (err) {
+      if (onSuccess) onSuccess(err.message || 'Có lỗi xảy ra!');
+    }
+  };
 
-    // Thay vì alert, ta gọi hàm onSuccess được truyền từ Navbar
-    onSuccess("Chào mừng thợ săn trở lại!");
-
-    // Đợi 2 giây cho user kịp đọc rồi mới reload
-    setTimeout(() => {
-      window.location.reload(); 
-    }, 2000);
-
-  } catch (err) {
-    onSuccess("Sai cmnr, check lại đi!"); // Dùng chung toast cho lỗi cũng được
-  }
-};
   return (
-    
-    <div style={overlayStyle}>
-      <section className="nes-container is-dark with-title" style={modalStyle}>
-        <h3 className="title">{isLogin ? "ĐĂNG NHẬP" : "ĐĂNG KÝ"}</h3>
-        
-        {/* Nút chuyển đổi Tab */}
-        <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
-          <button 
-            type="button" 
-            className={`nes-btn is-small ${isLogin ? 'is-primary' : ''}`}
-            onClick={() => setIsLogin(true)}
-          >Login</button>
-          <button 
-            type="button" 
-            className={`nes-btn is-small ${!isLogin ? 'is-success' : ''}`}
-            onClick={() => setIsLogin(false)}
-          >Register</button>
+    <div className="fixed inset-0 bg-pink-200/60 flex items-center justify-center z-[2000] p-4 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden flex flex-col text-left">
+        <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+          <h3 className="font-extrabold text-rose-900 text-lg">
+            {isLogin ? 'ĐĂNG NHẬP HỆ THỐNG' : 'TẠO TÀI KHOẢN MỚI'}
+          </h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-rose-700 text-xl font-bold cursor-pointer bg-transparent border-none">✕</button>
         </div>
 
-        <form onSubmit={handleSubmit}>
-          <div className="nes-field" style={{ marginBottom: '15px' }}>
-            <label>Username</label>
-            <input 
-              type="text" className="nes-input is-dark" 
-              value={formData.username}
-              onChange={(e) => setFormData({...formData, username: e.target.value})}
-              required 
-            />
+        <div className="flex px-6 pt-5 gap-4">
+          <button type="button" className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-colors cursor-pointer border-none ${isLogin ? 'bg-rose-700 text-white shadow-sm' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`} onClick={() => setIsLogin(true)}>Đăng nhập</button>
+          <button type="button" className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-colors cursor-pointer border-none ${!isLogin ? 'bg-rose-700 text-white shadow-sm' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`} onClick={() => setIsLogin(false)}>Đăng ký</button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-4">
+          {!isLogin && (
+            <>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-gray-400 uppercase">Họ và tên</label>
+                <input type="text" placeholder="Nguyễn Văn A" className="w-full bg-gray-50 border border-gray-200 rounded-xl py-3 px-4 text-sm focus:outline-none focus:border-rose-700" value={formData.fullName} onChange={(e) => setFormData({ ...formData, fullName: e.target.value })} required />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-gray-400 uppercase">Số điện thoại</label>
+                <input type="tel" placeholder="0901234567" className="w-full bg-gray-50 border border-gray-200 rounded-xl py-3 px-4 text-sm focus:outline-none focus:border-rose-700" value={formData.phoneNumber} onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })} required />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-gray-400 uppercase">Vai trò</label>
+                <select className="w-full bg-gray-50 border border-gray-200 rounded-xl py-3 px-4 text-sm focus:outline-none focus:border-rose-700" value={formData.role} onChange={(e) => setFormData({ ...formData, role: e.target.value })}>
+                  <option value="BUYER">Người mua</option>
+                  <option value="SELLER">Họa sĩ</option>
+                </select>
+              </div>
+            </>
+          )}
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-bold text-gray-400 uppercase">Email</label>
+            <input type="email" placeholder="email@example.com" className="w-full bg-gray-50 border border-gray-200 rounded-xl py-3 px-4 text-sm focus:outline-none focus:border-rose-700" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} required />
           </div>
 
-          <div className="nes-field" style={{ marginBottom: '20px' }}>
-            <label>Password</label>
-            <input 
-              type="password" className="nes-input is-dark" 
-              value={formData.password}
-              onChange={(e) => setFormData({...formData, password: e.target.value})}
-              required 
-            />
+          <div className="flex flex-col gap-1.5 mb-2">
+            <label className="text-xs font-bold text-gray-400 uppercase">Mật khẩu</label>
+            <input type="password" placeholder="Nhập mật khẩu..." className="w-full bg-gray-50 border border-gray-200 rounded-xl py-3 px-4 text-sm focus:outline-none focus:border-rose-700" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} required />
           </div>
 
-          <menu className="dialog-menu" style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-            <button type="button" className="nes-btn" onClick={onClose}>Hủy</button>
-            <button type="submit" className={`nes-btn ${isLogin ? 'is-primary' : 'is-success'}`}>
-              {isLogin ? "Vào Game" : "Tạo Account"}
-            </button>
-          </menu>
+          <div className="flex justify-end gap-3 mt-4">
+            <button type="button" onClick={onClose} className="px-5 py-2.5 text-sm font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl border-none cursor-pointer">Hủy bỏ</button>
+            <button type="submit" className="px-5 py-2.5 text-sm font-bold text-white bg-rose-700 hover:bg-rose-800 rounded-xl border-none cursor-pointer">{isLogin ? 'Vào Hệ Thống' : 'Tạo Tài Khoản'}</button>
+          </div>
         </form>
-      </section>
+      </div>
     </div>
   );
 };
-
-const overlayStyle = {
-  position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
-  backgroundColor: 'rgba(12, 12, 13, 0.33)', display: 'flex', justifyContent: 'center',
-  alignItems: 'center', zIndex: 2000
-};
-
-const modalStyle = { width: '400px', backgroundColor: '#83b5e6' };
 
 export default AuthModal;
